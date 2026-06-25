@@ -51,6 +51,56 @@ Configuration de stratégies de groupe (GPO) pour automatiser et sécuriser l'en
 
 ---
 
+## 📝 Scripts PowerShell
+
+### GPO Restriction USB — Création et déploiement automatique
+```powershell
+Import-Module GroupPolicy
+$gpoName = "Block USB Storage"
+
+# Liste des OUs cibles
+$ous = @("Finance", "RH")
+
+# Création du GPO une seule fois
+if (-not (Get-GPO -Name $gpoName -ErrorAction SilentlyContinue)) {
+    New-GPO -Name $gpoName | Out-Null
+}
+
+foreach ($ou in $ous) {
+    # DN correct pour chaque OU
+    $targetOU = "OU=$ou,DC=anjoutech,DC=lan"
+
+    # Vérifie que l'OU existe réellement
+    try {
+        Get-ADOrganizationalUnit -Identity $targetOU -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Warning "OU introuvable: $targetOU"
+        continue
+    }
+
+    # Lien GPO (idempotent)
+    New-GPLink -Name $gpoName -Target $targetOU -LinkEnabled Yes -ErrorAction SilentlyContinue
+    Write-Host "GPO lié à $targetOU"
+}
+
+# Bloquer stockage amovible (méthode correcte Microsoft)
+Set-GPRegistryValue -Name $gpoName `
+    -Key "HKLM\Software\Policies\Microsoft\Windows\RemovableStorageDevices" `
+    -ValueName "Deny_All" `
+    -Type DWord `
+    -Value 1
+
+# Bloquer installation périphériques USB
+Set-GPRegistryValue -Name $gpoName `
+    -Key "HKLM\Software\Policies\Microsoft\Windows\DeviceInstall\Restrictions" `
+    -ValueName "DenyDeviceClasses" `
+    -Type DWord `
+    -Value 1
+```
+
+---
+
 ## 🔍 Validation
 
 Toutes les GPOs ont été validées via :
