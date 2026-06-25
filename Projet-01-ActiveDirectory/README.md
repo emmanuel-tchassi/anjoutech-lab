@@ -101,6 +101,137 @@ Set-ADAccountPassword -Identity mtremblay `
     -Reset
 ```
 
+### Fine-Grained Password Policy — Déploiement automatique
+```powershell
+[CmdletBinding(SupportsShouldProcess = $true)]
+param()
+
+Import-Module ActiveDirectory -ErrorAction Stop
+
+function Get-FGPPSafe {
+    param([string]$Name)
+    return Get-ADFineGrainedPasswordPolicy -Filter "Name -eq '$Name'" -ErrorAction SilentlyContinue
+}
+
+function Test-ADGroupSafe {
+    param([string]$Name)
+    try {
+        Get-ADGroup -Identity $Name -ErrorAction Stop | Out-Null
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Ensure-FGPP {
+    param(
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [hashtable]$PolicyParams,
+        [string[]]$Groups,
+        [int]$Retry = 2
+    )
+
+    $policy = Get-FGPPSafe -Name $Name
+
+    if (-not $policy) {
+        if ($PSCmdlet.ShouldProcess($Name, "Créer la FGPP")) {
+            try {
+                New-ADFineGrainedPasswordPolicy @PolicyParams -ErrorAction Stop
+            } catch {
+                throw "Échec de création de la FGPP '$Name' : $_"
+            }
+            $policy = Get-FGPPSafe -Name $Name
+            if (-not $policy) {
+                throw "La FGPP '$Name' a été créée mais est introuvable après création."
+            }
+        }
+    }
+
+    foreach ($g in $Groups) {
+        if (-not (Test-ADGroupSafe $g)) {
+            Write-Warning "Le groupe '$g' n'existe pas. Ignoré."
+            continue
+        }
+        $policy = Get-FGPPSafe -Name $Name
+        if ($policy.AppliesTo -notcontains $g) {
+            if ($PSCmdlet.ShouldProcess($Name, "Ajouter $g à la FGPP")) {
+                try {
+                    Add-ADFineGrainedPasswordPolicySubject `
+                        -Identity $Name `
+                        -Subjects $g `
+                        -ErrorAction Stop
+                } catch {
+                    Write-Warning "Impossible d'ajouter $g à $Name : $_"
+                }
+            }
+        }
+    }
+    return Get-FGPPSafe -Name $Name | Select-Object Name, AppliesTo
+}
+
+# FGPP Administrateurs IT (stricte)
+$FGPP_IT = @{
+    Name = "PSO-IT-Admins"
+    PolicyParams = @{
+        Name = "PSO-IT-Admins"
+        ComplexityEnabled = $true
+        LockoutDuration = (New-TimeSpan -Minutes 30)
+        LockoutObservationWindow = (New-TimeSpan -Minutes 30)
+        LockoutThreshold = 3
+        MaxPasswordAge = (New-TimeSpan -Days 30)
+        MinPasswordAge = (New-TimeSpan -Days 1)
+        MinPasswordLength = 14
+        PasswordHistoryCount = 24
+        Precedence = 1
+        ReversibleEncryptionEnabled = $false
+        ProtectedFromAccidentalDeletion = $true
+    }
+    Groups = @("GRP-IT")
+}
+
+# FGPP Utilisateurs standards
+$FGPP_USERS = @{
+    Name = "PSO-Users"
+    PolicyParams = @{
+        Name = "PSO-Users"
+        ComplexityEnabled = $true
+        LockoutDuration = (New-TimeSpan -Minutes 15)
+        LockoutObservationWindow = (New-TimeSpan -Minutes 15)
+        LockoutThreshold = 5
+        MaxPasswordAge = (New-TimeSpan -Days 30)
+        MinPasswordAge = (New-TimeSpan -Days 1)
+        MinPasswordLength = 8
+        PasswordHistoryCount = 24
+        Precedence = 10
+        ReversibleEncryptionEnabled = $false
+        ProtectedFromAccidentalDeletion = $true
+    }
+    Groups = @("GRP-RH", "GRP-Finance")
+}
+
+try {
+    Write-Verbose "Déploiement FGPP - IT en cours"
+    $resultIT = Ensure-FGPP @FGPP_IT
+
+    Write-Verbose "Déploiement FGPP - Utilisateurs en cours"
+    $resultUsers = Ensure-FGPP @FGPP_USERS
+
+    [PSCustomObject]@{
+        FGPP_IT    = $resultIT
+        FGPP_Users = $resultUsers
+    }
+} catch {
+    Write-Error "Échec du déploiement FGPP : $_"
+    throw
+}
+
+# Vérification finale
+Get-ADFineGrainedPasswordPolicy "PSO-IT-Admins" | Select-Object Name, AppliesTo
+Get-ADUserResultantPasswordPolicy jfortin
+Get-ADFineGrainedPasswordPolicy "PSO-Users" | Select-Object Name, AppliesTo
+Get-ADUserResultantPasswordPolicy mtremblay
+```
+
 ---
 
 ## 🎯 Compétences démontrées
