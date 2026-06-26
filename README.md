@@ -30,7 +30,7 @@ L'environnement **AnjouTech** (domaine : `anjoutech.lan`) reproduit fidèlement 
 |---|---|---|
 | 01 | [Active Directory](./Projet-01-Active-Directory/) | AD DS, PowerShell, Gestion des utilisateurs |
 | 02 | [Group Policy (GPO)](./Projet-02-GPO/) | GPO, Administration Windows |
-| 03 | [Serveur de fichiers](./Projet-03-Fichiers/) | NTFS, SMB, Permissions |
+| 03 | [Serveur de fichiers](./Projet-03-Serveur-De-Fichiers/) | NTFS, SMB, Permissions |
 | 04 | [WSUS / Windows Update for Business](./Projet-04-WSUS/) | Patch Management, GPO |
 | 05 | [Réseau d'entreprise simulé](./Projet-05-Reseau/) | VLAN, DHCP, DNS, Cisco Packet Tracer |
 | 06 | [Microsoft 365](./Projet-06-M365/) | Exchange Online, Entra ID, MFA |
