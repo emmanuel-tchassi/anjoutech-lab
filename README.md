@@ -28,7 +28,7 @@ L'environnement **AnjouTech** (domaine : `anjoutech.lan`) reproduit fidèlement 
 
 | # | Projet | Compétences |
 |---|---|---|
-| 01 | [Active Directory](./Projet-01-ActiveDirectory/) | AD DS, PowerShell, Gestion des utilisateurs |
+| 01 | [Active Directory](./Projet-01-Active-Directory/) | AD DS, PowerShell, Gestion des utilisateurs |
 | 02 | [Group Policy (GPO)](./Projet-02-GPO/) | GPO, Administration Windows |
 | 03 | [Serveur de fichiers](./Projet-03-Fichiers/) | NTFS, SMB, Permissions |
 | 04 | [WSUS / Windows Update for Business](./Projet-04-WSUS/) | Patch Management, GPO |
